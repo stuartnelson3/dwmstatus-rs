@@ -1,0 +1,6 @@
+dwmstatus-rs
+============
+
+status bar for dwm written in rust. uses xcb bindings for communication.
+
+start the binary in the background when you start dwm.
