@@ -1,7 +1,9 @@
 #![feature(libc)]
 extern crate libc;
 extern crate xcb;
+extern crate chrono;
 
+use chrono::prelude::*;
 use xcb::ffi::xproto::xcb_change_property;
 use libc::c_void;
 
@@ -13,7 +15,16 @@ fn main() {
     let mut percent = 100;
 
     loop {
-        let message = format!("tc-73db9 | {}% | test", percent);
+        let dt: DateTime<Local> = Local::now();
+        let message = format!(
+            "tc-73db9 | {}% | {}-{}-{} {}:{}",
+            percent,
+            dt.year(),
+            dt.month(),
+            dt.day(),
+            dt.hour(),
+            dt.minute()
+        );
         let data = message.as_ptr() as *const c_void;
 
         unsafe {
