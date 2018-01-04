@@ -12,13 +12,11 @@ fn main() {
     let setup = conn.get_setup();
     let root = setup.roots().nth(screen_num as usize).unwrap().root();
     let one_sec = std::time::Duration::new(1, 0);
-    let mut percent = 100;
 
     loop {
         let dt: DateTime<Local> = Local::now();
         let message = format!(
-            "tc-73db9 | {}% | {}-{}-{} {}:{}",
-            percent,
+            " tc-73db9 | {}-{}-{} {}:{}",
             dt.year(),
             dt.month(),
             dt.day(),
@@ -41,7 +39,6 @@ fn main() {
         }
         conn.flush();
 
-        percent -= 1;
         std::thread::sleep(one_sec);
     }
 }
