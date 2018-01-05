@@ -32,8 +32,13 @@ fn file_as_number(mut file: File) -> f32 {
 
 fn get_battery(batteries: &[&str]) -> io::Result<BatteryStatus> {
     for bat in batteries.iter() {
-        let power = match File::open(format!("/sys/class/power_supply/{}/power_now", bat)) {
-            Ok(mut f) => file_as_number(f),
+        let status = match File::open(format!("/sys/class/power_supply/{}/status", bat)) {
+            Ok(mut f) => {
+                let mut buf = String::new();
+                f.read_to_string(&mut buf).is_ok();
+                // Remove \n
+                buf.trim_right().to_owned()
+            }
             Err(_) => continue,
         };
 
@@ -50,9 +55,14 @@ fn get_battery(batteries: &[&str]) -> io::Result<BatteryStatus> {
 
         let percent = 100.0 * energy_now / energy_full;
 
-        if power == 0.0 {
+        if status == "Charging" {
             return Ok(BatteryStatus::Charging(percent));
         } else {
+            let power = match File::open(format!("/sys/class/power_supply/{}/power_now", bat)) {
+                Ok(mut f) => file_as_number(f),
+                Err(_) => continue,
+            };
+
             return Ok(BatteryStatus::Discharging(percent, energy_now / power));
         }
 
@@ -116,8 +126,8 @@ fn main() {
 
         let interface_kilobytes = match get_interface_bytes(interface.name) {
             Ok((rx, tx)) => {
-                let rx = rx / (1024.0);
-                let tx = tx / (1024.0);
+                let rx = rx / 1024.0;
+                let tx = tx / 1024.0;
                 let bytes =
                     format!(
                     "rx: {:.0} kbps tx: {:.0} kbps",
@@ -132,7 +142,7 @@ fn main() {
         };
 
         let battery_status = match get_battery(&batteries) {
-            Ok(BatteryStatus::Charging(percent)) => format!("{:.2}%", percent),
+            Ok(BatteryStatus::Charging(percent)) => format!("{:.2}% (charging)", percent),
             Ok(BatteryStatus::Discharging(percent, seconds)) => {
                 format!("{:.2}% ({:.2} hrs)", percent, seconds)
             }
