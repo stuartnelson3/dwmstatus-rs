@@ -110,6 +110,19 @@ struct NetworkInterface<'a> {
     tx: f32,
 }
 
+
+fn get_date() -> String {
+    let dt: DateTime<Local> = Local::now();
+    format!(
+        "{}.{:02}.{:02} {:02}:{:02}",
+        dt.year(),
+        dt.month(),
+        dt.day(),
+        dt.hour(),
+        dt.minute()
+    )
+}
+
 fn main() {
     let (conn, screen_num) = xcb::Connection::connect(None).unwrap();
     let setup = conn.get_setup();
@@ -150,21 +163,11 @@ fn main() {
             Err(_) => "error".to_owned(),
         };
 
-        let dt: DateTime<Local> = Local::now();
-        let date = format!(
-            "{}.{:02}.{:02} {:02}:{:02}",
-            dt.year(),
-            dt.month(),
-            dt.day(),
-            dt.hour(),
-            dt.minute()
-        );
-
         let message =
             format!(
             " tc-73db9 | {} | {} | {} ",
             interface_kilobytes,
-            date,
+            get_date(),
             battery_status,
         );
         let data = message.as_ptr() as *const c_void;
