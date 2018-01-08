@@ -15,6 +15,7 @@ use std::io::BufRead;
 use std::io::{Error, ErrorKind};
 
 enum BatteryStatus {
+    Charged,
     // percentage charged (0-100)
     Charging(f32),
     // percentage charged (0-100), time remaining (hours)
@@ -55,14 +56,16 @@ fn get_battery(batteries: &[&str]) -> io::Result<BatteryStatus> {
 
         let percent = 100.0 * energy_now / energy_full;
 
+        let power = match File::open(format!("/sys/class/power_supply/{}/power_now", bat)) {
+            Ok(mut f) => file_as_number(f),
+            Err(_) => continue,
+        };
+
         if status == "Charging" {
             return Ok(BatteryStatus::Charging(percent));
+        } else if status == "Unknown" && power == 0.0 {
+            return Ok(BatteryStatus::Charged);
         } else {
-            let power = match File::open(format!("/sys/class/power_supply/{}/power_now", bat)) {
-                Ok(mut f) => file_as_number(f),
-                Err(_) => continue,
-            };
-
             return Ok(BatteryStatus::Discharging(percent, energy_now / power));
         }
 
@@ -155,6 +158,9 @@ fn main() {
         };
 
         let battery_status = match get_battery(&batteries) {
+            // For some weird reason, my charged battery says it has more energy in it that its
+            // capacity.
+            Ok(BatteryStatus::Charged) => "charged".to_owned(),
             Ok(BatteryStatus::Charging(percent)) => format!("{:.2}% (charging)", percent),
             Ok(BatteryStatus::Discharging(percent, seconds)) => {
                 format!("{:.2}% ({:.2} hrs)", percent, seconds)
