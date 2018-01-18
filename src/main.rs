@@ -63,7 +63,7 @@ fn get_battery(batteries: &[&str]) -> io::Result<BatteryStatus> {
 
         if status == "Charging" {
             return Ok(BatteryStatus::Charging(percent));
-        } else if status == "Unknown" && power == 0.0 {
+        } else if (status == "Unknown" || status == "Full") && power == 0.0 {
             return Ok(BatteryStatus::Charged);
         } else {
             return Ok(BatteryStatus::Discharging(percent, energy_now / power));
