@@ -14,13 +14,50 @@ use std::io::BufReader;
 use std::io::BufRead;
 use std::io::{Error, ErrorKind};
 
+#[derive(Debug)]
 enum BatteryStatus {
     Charged,
-    // percentage charged (0-100)
-    Charging(f32),
-    // percentage charged (0-100), time remaining (hours)
-    Discharging(f32, f32),
+    Charging,
+    Discharging,
     Unknown,
+}
+
+struct Battery {
+    power: f32,
+    energy: f32,
+    capacity: f32,
+    status: BatteryStatus,
+}
+
+impl Battery {
+    fn new() -> Battery {
+        Battery {
+            power: 0.0,
+            energy: 0.0,
+            capacity: 0.0,
+            status: BatteryStatus::Unknown,
+        }
+    }
+
+    fn percent(&self) -> f32 {
+        100.0 * self.energy / self.capacity
+    }
+
+    fn remaining(&self) -> f32 {
+        // Watts / Watt*hrs
+        self.energy / self.power
+    }
+
+    fn status(&self) -> String {
+        match self.status {
+            BatteryStatus::Charged => "charged".to_owned(),
+            BatteryStatus::Charging => format!("{:.2}% (charging)", self.percent()),
+            BatteryStatus::Discharging => {
+                format!("{:.2}% ({:.2} hrs)", self.percent(), self.remaining())
+            }
+            BatteryStatus::Unknown => "no battery found".to_owned(),
+        }
+    }
 }
 
 fn file_as_number(mut file: File) -> f32 {
@@ -31,46 +68,47 @@ fn file_as_number(mut file: File) -> f32 {
     trimmed.parse::<f32>().unwrap()
 }
 
-fn get_battery(batteries: &[&str]) -> io::Result<BatteryStatus> {
-    for bat in batteries.iter() {
-        let status = match File::open(format!("/sys/class/power_supply/{}/status", bat)) {
-            Ok(mut f) => {
-                let mut buf = String::new();
-                f.read_to_string(&mut buf).is_ok();
-                // Remove \n
-                buf.trim_right().to_owned()
-            }
-            Err(_) => continue,
-        };
-
-        let energy_now = match File::open(format!("/sys/class/power_supply/{}/energy_now", bat)) {
-            Ok(mut f) => file_as_number(f),
-            Err(_) => continue,
-        };
-
-        let energy_full =
-            match File::open(format!("/sys/class/power_supply/{}/energy_full", bat)) {
-                Ok(mut f) => file_as_number(f),
-                Err(_) => continue,
-            };
-
-        let percent = 100.0 * energy_now / energy_full;
-
-        let power = match File::open(format!("/sys/class/power_supply/{}/power_now", bat)) {
-            Ok(mut f) => file_as_number(f),
-            Err(_) => continue,
-        };
-
-        if status == "Charging" {
-            return Ok(BatteryStatus::Charging(percent));
-        } else if (status == "Unknown" || status == "Full") && power == 0.0 {
-            return Ok(BatteryStatus::Charged);
-        } else {
-            return Ok(BatteryStatus::Discharging(percent, energy_now / power));
+fn get_battery(battery: &&str) -> Option<Battery> {
+    let status = match File::open(format!("/sys/class/power_supply/{}/status", battery)) {
+        Ok(mut f) => {
+            let mut buf = String::new();
+            f.read_to_string(&mut buf).is_ok();
+            // Remove \n
+            buf.trim_right().to_owned()
         }
+        Err(_) => return None,
+    };
 
-    }
-    Ok(BatteryStatus::Unknown)
+    let energy_now = match File::open(format!("/sys/class/power_supply/{}/energy_now", battery)) {
+        Ok(mut f) => file_as_number(f),
+        Err(_) => return None,
+    };
+
+    let energy_full =
+        match File::open(format!("/sys/class/power_supply/{}/energy_full", battery)) {
+            Ok(mut f) => file_as_number(f),
+            Err(_) => return None,
+        };
+
+    let power = match File::open(format!("/sys/class/power_supply/{}/power_now", battery)) {
+        Ok(mut f) => file_as_number(f),
+        Err(_) => return None,
+    };
+
+    let status = if status == "Charging" {
+        BatteryStatus::Charging
+    } else if (status == "Unknown" || status == "Full") && power == 0.0 {
+        BatteryStatus::Charged
+    } else {
+        BatteryStatus::Discharging
+    };
+
+    Some(Battery {
+        power: power,
+        energy: energy_now,
+        capacity: energy_full,
+        status: status,
+    })
 }
 
 fn get_interface_bytes(interface: &str) -> io::Result<(f32, f32)> {
@@ -139,7 +177,6 @@ fn main() {
     };
 
     loop {
-
         let interface_kilobytes = match get_interface_bytes(interface.name) {
             Ok((rx, tx)) => {
                 let rx = rx / 1024.0;
@@ -157,25 +194,36 @@ fn main() {
             Err(_e) => "interface not found".to_owned(),
         };
 
-        let battery_status = match get_battery(&batteries) {
-            // For some weird reason, my charged battery says it has more energy in it that its
-            // capacity.
-            Ok(BatteryStatus::Charged) => "charged".to_owned(),
-            Ok(BatteryStatus::Charging(percent)) => format!("{:.2}% (charging)", percent),
-            Ok(BatteryStatus::Discharging(percent, seconds)) => {
-                format!("{:.2}% ({:.2} hrs)", percent, seconds)
-            }
-            Ok(BatteryStatus::Unknown) => "no battery found".to_owned(),
-            Err(_) => "error".to_owned(),
-        };
+        let battery: Battery = batteries.iter().filter_map(get_battery).fold(
+            Battery::new(),
+            |mut acc, bat| {
+                acc.power += bat.power;
+                acc.capacity += bat.capacity;
+                acc.energy += bat.energy;
+
+                match bat.status {
+                    BatteryStatus::Charged => {
+                        // Implement std::cmp::PartialEq so I can just use an if statement.
+                        match acc.status {
+                            BatteryStatus::Charging => acc.status = BatteryStatus::Charging,
+                            BatteryStatus::Discharging => {}
+                            _ => acc.status = BatteryStatus::Charged,
+                        }
+                    }
+                    _ => acc.status = bat.status,
+                };
+                acc
+            },
+        );
 
         let message =
             format!(
-            " tc-73db9 | {} | {} | {} ",
+            " {} | {} | {} ",
             interface_kilobytes,
             get_date(),
-            battery_status,
+            battery.status(),
         );
+
         let data = message.as_ptr() as *const c_void;
 
         unsafe {
