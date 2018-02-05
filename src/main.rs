@@ -68,31 +68,29 @@ fn file_as_number(mut file: File) -> f32 {
     trimmed.parse::<f32>().unwrap()
 }
 
-fn get_battery(battery: &&str) -> Option<Battery> {
-    let status = match File::open(format!("/sys/class/power_supply/{}/status", battery)) {
-        Ok(mut f) => {
-            let mut buf = String::new();
-            f.read_to_string(&mut buf).is_ok();
-            // Remove \n
-            buf.trim_right().to_owned()
-        }
-        Err(_) => return None,
+fn get_battery(battery: &&str) -> io::Result<Battery> {
+    let mut f = File::open(format!("/sys/class/power_supply/{}/status", battery))?;
+    let status = {
+        let mut buf = String::new();
+        f.read_to_string(&mut buf).is_ok();
+        // Remove \n
+        buf.trim_right().to_owned()
     };
 
-    let energy_now = match File::open(format!("/sys/class/power_supply/{}/energy_now", battery)) {
-        Ok(mut f) => file_as_number(f),
-        Err(_) => return None,
-    };
+    let energy_now = file_as_number(File::open(format!(
+        "/sys/class/power_supply/{}/energy_now",
+        battery
+    ))?);
 
-    let energy_full = match File::open(format!("/sys/class/power_supply/{}/energy_full", battery)) {
-        Ok(mut f) => file_as_number(f),
-        Err(_) => return None,
-    };
+    let energy_full = file_as_number(File::open(format!(
+        "/sys/class/power_supply/{}/energy_full",
+        battery
+    ))?);
 
-    let power = match File::open(format!("/sys/class/power_supply/{}/power_now", battery)) {
-        Ok(mut f) => file_as_number(f),
-        Err(_) => return None,
-    };
+    let power = file_as_number(File::open(format!(
+        "/sys/class/power_supply/{}/power_now",
+        battery
+    ))?);
 
     let status = if status == "Charging" {
         BatteryStatus::Charging
@@ -102,7 +100,7 @@ fn get_battery(battery: &&str) -> Option<Battery> {
         BatteryStatus::Discharging
     };
 
-    Some(Battery {
+    Ok(Battery {
         power: power,
         energy: energy_now,
         capacity: energy_full,
@@ -193,9 +191,10 @@ fn main() {
             Err(_e) => "interface not found".to_owned(),
         };
 
-        let battery: Battery = batteries.iter().filter_map(get_battery).fold(
-            Battery::new(),
-            |mut acc, bat| {
+        let battery: Battery = batteries
+            .iter()
+            .filter_map(|bat| get_battery(bat).ok())
+            .fold(Battery::new(), |mut acc, bat| {
                 acc.power += bat.power;
                 acc.capacity += bat.capacity;
                 acc.energy += bat.energy;
@@ -212,8 +211,7 @@ fn main() {
                     _ => acc.status = bat.status,
                 };
                 acc
-            },
-        );
+            });
 
         let message = format!(
             " {} | {} | {} ",
