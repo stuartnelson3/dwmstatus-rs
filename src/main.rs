@@ -111,46 +111,47 @@ fn get_battery(battery: &&str) -> Option<Battery> {
     })
 }
 
-fn get_interface_bytes(interface: &str) -> io::Result<(f32, f32)> {
-    let f = File::open("/proc/net/dev")?;
-
-    let reader = BufReader::new(f);
-    let mut lines = reader.lines();
-    // drop the header
-    let _ = lines.next();
-    // ideally, do some fancy index checking to make sure bytes received and transmitted
-    // line up.
-    let _ = lines.next();
-    let section_len = 7;
-
-    for line in lines {
-        match line {
-            Ok(line) => {
-                if line.starts_with(interface) {
-                    let mut split = line.split_whitespace();
-                    split.next();
-                    let rx = split.nth(0);
-                    let tx = split.nth(1 * section_len);
-
-                    return Ok((
-                        rx.unwrap_or("0").parse::<f32>().unwrap(),
-                        tx.unwrap_or("0").parse::<f32>().unwrap(),
-                    ));
-                }
-            }
-            Err(_) => continue,
-        }
-    }
-
-    return Err(Error::new(ErrorKind::Other, "oh no!"));
-}
-
 struct NetworkInterface<'a> {
     name: &'a str,
     rx: f32,
     tx: f32,
 }
 
+impl<'a> NetworkInterface<'a> {
+    fn get_bytes(&self) -> io::Result<(f32, f32)> {
+        let f = File::open("/proc/net/dev")?;
+
+        let reader = BufReader::new(f);
+        let mut lines = reader.lines();
+        // drop the header
+        let _ = lines.next();
+        // ideally, do some fancy index checking to make sure bytes received and transmitted
+        // line up.
+        let _ = lines.next();
+        let section_len = 7;
+
+        for line in lines {
+            match line {
+                Ok(line) => {
+                    if line.starts_with(self.name) {
+                        let mut split = line.split_whitespace();
+                        split.next();
+                        let rx = split.nth(0);
+                        let tx = split.nth(1 * section_len);
+
+                        return Ok((
+                            rx.unwrap_or("0").parse::<f32>().unwrap(),
+                            tx.unwrap_or("0").parse::<f32>().unwrap(),
+                        ));
+                    }
+                }
+                Err(_) => continue,
+            }
+        }
+
+        return Err(Error::new(ErrorKind::Other, "oh no!"));
+    }
+}
 
 fn get_date() -> String {
     let dt: DateTime<Local> = Local::now();
@@ -177,12 +178,11 @@ fn main() {
     };
 
     loop {
-        let interface_kilobytes = match get_interface_bytes(interface.name) {
+        let interface_kilobytes = match interface.get_bytes() {
             Ok((rx, tx)) => {
                 let rx = rx / 1024.0;
                 let tx = tx / 1024.0;
-                let bytes =
-                    format!(
+                let bytes = format!(
                     "rx: {:.0} kbps tx: {:.0} kbps",
                     rx - interface.rx,
                     tx - interface.tx,
