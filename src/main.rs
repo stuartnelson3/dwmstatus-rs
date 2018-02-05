@@ -1,7 +1,7 @@
 #![feature(libc)]
+extern crate chrono;
 extern crate libc;
 extern crate xcb;
-extern crate chrono;
 
 use chrono::prelude::*;
 use xcb::ffi::xproto::xcb_change_property;
@@ -84,11 +84,10 @@ fn get_battery(battery: &&str) -> Option<Battery> {
         Err(_) => return None,
     };
 
-    let energy_full =
-        match File::open(format!("/sys/class/power_supply/{}/energy_full", battery)) {
-            Ok(mut f) => file_as_number(f),
-            Err(_) => return None,
-        };
+    let energy_full = match File::open(format!("/sys/class/power_supply/{}/energy_full", battery)) {
+        Ok(mut f) => file_as_number(f),
+        Err(_) => return None,
+    };
 
     let power = match File::open(format!("/sys/class/power_supply/{}/power_now", battery)) {
         Ok(mut f) => file_as_number(f),
@@ -216,8 +215,7 @@ fn main() {
             },
         );
 
-        let message =
-            format!(
+        let message = format!(
             " {} | {} | {} ",
             interface_kilobytes,
             get_date(),
