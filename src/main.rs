@@ -1,4 +1,4 @@
-#![feature(libc)]
+extern crate alsa;
 extern crate chrono;
 extern crate libc;
 extern crate xcb;
@@ -95,20 +95,17 @@ fn get_battery(battery: &&str) -> io::Result<Battery> {
         buf.trim_right().to_owned()
     };
 
-    let energy_now = file_as_number(File::open(format!(
-        "/sys/class/power_supply/{}/energy_now",
-        battery
-    ))?);
+    let energy_now = file_as_number(File::open(
+        format!("/sys/class/power_supply/{}/energy_now", battery),
+    )?);
 
-    let energy_full = file_as_number(File::open(format!(
-        "/sys/class/power_supply/{}/energy_full",
-        battery
-    ))?);
+    let energy_full = file_as_number(File::open(
+        format!("/sys/class/power_supply/{}/energy_full", battery),
+    )?);
 
-    let power = file_as_number(File::open(format!(
-        "/sys/class/power_supply/{}/power_now",
-        battery
-    ))?);
+    let power = file_as_number(File::open(
+        format!("/sys/class/power_supply/{}/power_now", battery),
+    )?);
 
     let status = if status == "Charging" {
         BatteryStatus::Charging
@@ -147,19 +144,17 @@ impl<'a> NetworkInterface<'a> {
 
         for line in lines {
             match line {
-                Ok(line) => {
-                    if line.starts_with(self.name) {
-                        let mut split = line.split_whitespace();
-                        split.next();
-                        let rx = split.nth(0);
-                        let tx = split.nth(1 * section_len);
+                Ok(line) => if line.starts_with(self.name) {
+                    let mut split = line.split_whitespace();
+                    split.next();
+                    let rx = split.nth(0);
+                    let tx = split.nth(1 * section_len);
 
-                        return Ok((
-                            rx.unwrap_or("0").parse::<f32>().unwrap(),
-                            tx.unwrap_or("0").parse::<f32>().unwrap(),
-                        ));
-                    }
-                }
+                    return Ok((
+                        rx.unwrap_or("0").parse::<f32>().unwrap(),
+                        tx.unwrap_or("0").parse::<f32>().unwrap(),
+                    ));
+                },
                 Err(_) => continue,
             }
         }
