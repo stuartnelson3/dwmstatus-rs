@@ -58,6 +58,24 @@ impl Battery {
             BatteryStatus::Unknown => "no battery found".to_owned(),
         }
     }
+
+    fn combine(&mut self, other: Battery) {
+        self.power += other.power;
+        self.capacity += other.capacity;
+        self.energy += other.energy;
+
+        match other.status {
+            BatteryStatus::Charged => {
+                // Implement std::cmp::PartialEq so I can just use an if statement.
+                match self.status {
+                    BatteryStatus::Charging => self.status = BatteryStatus::Charging,
+                    BatteryStatus::Discharging => {}
+                    _ => self.status = BatteryStatus::Charged,
+                }
+            }
+            _ => self.status = other.status,
+        };
+    }
 }
 
 fn file_as_number(mut file: File) -> f32 {
@@ -195,21 +213,7 @@ fn main() {
             .iter()
             .filter_map(|bat| get_battery(bat).ok())
             .fold(Battery::new(), |mut acc, bat| {
-                acc.power += bat.power;
-                acc.capacity += bat.capacity;
-                acc.energy += bat.energy;
-
-                match bat.status {
-                    BatteryStatus::Charged => {
-                        // Implement std::cmp::PartialEq so I can just use an if statement.
-                        match acc.status {
-                            BatteryStatus::Charging => acc.status = BatteryStatus::Charging,
-                            BatteryStatus::Discharging => {}
-                            _ => acc.status = BatteryStatus::Charged,
-                        }
-                    }
-                    _ => acc.status = bat.status,
-                };
+                acc.combine(bat);
                 acc
             });
 
