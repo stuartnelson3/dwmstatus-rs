@@ -7,3 +7,4 @@ authors = ["stuart nelson <stuartnelson3@gmail.com>"]
 xcb = "^0.8.1"
 libc = "^0.2.3"
 chrono = "0.4"
+alsa = "^0.2.0"

@@ -217,9 +217,25 @@ fn main() {
                 acc
             });
 
+        // TODO:
+        // - Move into method
+        // - Try to not create a new mixer each time
+        // - Better way than hardcoding to get mixer/selem_id? (was going through elem iterator and
+        // wrapping with selem...)
+        let mixer = alsa::mixer::Mixer::new("hw:0", true).unwrap();
+        let selem_id = alsa::mixer::SelemId::new("Master", 0);
+        let selem = mixer.find_selem(&selem_id).unwrap();
+        let volume = format!(
+            "Vol: {}",
+            selem
+                .get_playback_volume(alsa::mixer::SelemChannelId::FrontLeft)
+                .unwrap()
+        );
+
         let message = format!(
-            " {} | {} | {} ",
+            " {} | {} | {} | {} ",
             interface_kilobytes,
+            volume,
             get_date(),
             battery.status(),
         );
