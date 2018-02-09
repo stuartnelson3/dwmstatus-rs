@@ -217,15 +217,24 @@ fn main() {
         // - Try to not create a new mixer each time
         // - Better way than hardcoding to get mixer/selem_id? (was going through elem iterator and
         // wrapping with selem...)
-        let mixer = alsa::mixer::Mixer::new("hw:0", true).unwrap();
+        // Find card with aplay -L
+        let mixer = alsa::mixer::Mixer::new("default", true).unwrap();
         let selem_id = alsa::mixer::SelemId::new("Master", 0);
         let selem = mixer.find_selem(&selem_id).unwrap();
-        let volume = format!(
-            "Vol: {}",
-            selem
-                .get_playback_volume(alsa::mixer::SelemChannelId::FrontLeft)
-                .unwrap()
-        );
+
+        let (pmin, pmax) = selem.get_playback_volume_range();
+        let pvol = selem
+            .get_playback_volume(alsa::mixer::SelemChannelId::FrontLeft)
+            .unwrap();
+        let volume_percent = 100.0 * pvol as f64 / (pmax - pmin) as f64;
+        let psw = selem
+            .get_playback_switch(alsa::mixer::SelemChannelId::FrontLeft)
+            .unwrap();
+        let volume = if psw == 1 {
+            format!("Vol: {}", volume_percent as i8)
+        } else {
+            format!("Vol: [off]")
+        };
 
         let message = format!(
             " {} | {} | {} | {} ",
