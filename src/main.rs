@@ -175,6 +175,25 @@ fn get_date() -> String {
     )
 }
 
+fn get_volume(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> String {
+    let mixer = alsa::mixer::Mixer::new(audio_card_name, true).unwrap();
+    let selem = mixer.find_selem(&selem_id).unwrap();
+
+    let (pmin, pmax) = selem.get_playback_volume_range();
+    let pvol = selem
+        .get_playback_volume(alsa::mixer::SelemChannelId::FrontLeft)
+        .unwrap();
+    let volume_percent = 100.0 * pvol as f64 / (pmax - pmin) as f64;
+    let psw = selem
+        .get_playback_switch(alsa::mixer::SelemChannelId::FrontLeft)
+        .unwrap();
+    if psw == 1 {
+        format!("Vol: {}", volume_percent as i8)
+    } else {
+        format!("Vol: [off]")
+    }
+}
+
 fn main() {
     let (conn, screen_num) = xcb::Connection::connect(None).unwrap();
     let setup = conn.get_setup();
@@ -186,6 +205,8 @@ fn main() {
         rx: 0.0,
         tx: 0.0,
     };
+    let audio_card_name = "default";
+    let selem_id = alsa::mixer::SelemId::new("Master", 0);
 
     loop {
         let interface_kilobytes = match interface.get_bytes() {
@@ -212,34 +233,10 @@ fn main() {
                 acc
             });
 
-        // TODO:
-        // - Move into method
-        // - Try to not create a new mixer each time
-        // - Better way than hardcoding to get mixer/selem_id? (was going through elem iterator and
-        // wrapping with selem...)
-        // Find card with aplay -L
-        let mixer = alsa::mixer::Mixer::new("default", true).unwrap();
-        let selem_id = alsa::mixer::SelemId::new("Master", 0);
-        let selem = mixer.find_selem(&selem_id).unwrap();
-
-        let (pmin, pmax) = selem.get_playback_volume_range();
-        let pvol = selem
-            .get_playback_volume(alsa::mixer::SelemChannelId::FrontLeft)
-            .unwrap();
-        let volume_percent = 100.0 * pvol as f64 / (pmax - pmin) as f64;
-        let psw = selem
-            .get_playback_switch(alsa::mixer::SelemChannelId::FrontLeft)
-            .unwrap();
-        let volume = if psw == 1 {
-            format!("Vol: {}", volume_percent as i8)
-        } else {
-            format!("Vol: [off]")
-        };
-
         let message = format!(
             " {} | {} | {} | {} ",
             interface_kilobytes,
-            volume,
+            get_volume(audio_card_name, &selem_id),
             get_date(),
             battery.status(),
         );
