@@ -44,7 +44,7 @@ impl Battery {
     pub fn status(&self) -> String {
         match self.status {
             BatteryStatus::Charged => "charged".to_owned(),
-            BatteryStatus::Charging => format!("{:.2}% (charging)", self.percent()),
+            BatteryStatus::Charging => format!("{:.2}% (+)", self.percent()),
             BatteryStatus::Discharging => {
                 format!("{:.2}% ({:.2} hrs)", self.percent(), self.remaining())
             }
