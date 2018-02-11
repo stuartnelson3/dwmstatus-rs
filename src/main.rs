@@ -15,69 +15,7 @@ use std::io::BufReader;
 use std::io::BufRead;
 use std::io::{Error, ErrorKind};
 
-#[derive(Debug)]
-enum BatteryStatus {
-    Charged,
-    Charging,
-    Discharging,
-    Unknown,
-}
-
-struct Battery {
-    power: f32,
-    energy: f32,
-    capacity: f32,
-    status: BatteryStatus,
-}
-
-impl Battery {
-    fn new() -> Battery {
-        Battery {
-            power: 0.0,
-            energy: 0.0,
-            capacity: 0.0,
-            status: BatteryStatus::Unknown,
-        }
-    }
-
-    fn percent(&self) -> f32 {
-        100.0 * self.energy / self.capacity
-    }
-
-    fn remaining(&self) -> f32 {
-        // Watts / Watt*hrs
-        self.energy / self.power
-    }
-
-    fn status(&self) -> String {
-        match self.status {
-            BatteryStatus::Charged => "charged".to_owned(),
-            BatteryStatus::Charging => format!("{:.2}% (charging)", self.percent()),
-            BatteryStatus::Discharging => {
-                format!("{:.2}% ({:.2} hrs)", self.percent(), self.remaining())
-            }
-            BatteryStatus::Unknown => "no battery found".to_owned(),
-        }
-    }
-
-    fn combine(&mut self, other: Battery) {
-        self.power += other.power;
-        self.capacity += other.capacity;
-        self.energy += other.energy;
-
-        match other.status {
-            BatteryStatus::Charged => {
-                // Implement std::cmp::PartialEq so I can just use an if statement.
-                match self.status {
-                    BatteryStatus::Charging => self.status = BatteryStatus::Charging,
-                    BatteryStatus::Discharging => {}
-                    _ => self.status = BatteryStatus::Charged,
-                }
-            }
-            _ => self.status = other.status,
-        };
-    }
-}
+mod models;
 
 fn file_as_number(mut file: File) -> f32 {
     let mut buf = String::new();
@@ -87,7 +25,7 @@ fn file_as_number(mut file: File) -> f32 {
     trimmed.parse::<f32>().unwrap()
 }
 
-fn get_battery(battery: &&str) -> io::Result<Battery> {
+fn get_battery(battery: &&str) -> io::Result<models::Battery> {
     let mut f = File::open(format!("/sys/class/power_supply/{}/status", battery))?;
     let status = {
         let mut buf = String::new();
@@ -109,14 +47,14 @@ fn get_battery(battery: &&str) -> io::Result<Battery> {
     )?);
 
     let status = if status == "Charging" {
-        BatteryStatus::Charging
+        models::BatteryStatus::Charging
     } else if (status == "Unknown" || status == "Full") && power == 0.0 {
-        BatteryStatus::Charged
+        models::BatteryStatus::Charged
     } else {
-        BatteryStatus::Discharging
+        models::BatteryStatus::Discharging
     };
 
-    Ok(Battery {
+    Ok(models::Battery {
         power: power,
         energy: energy_now,
         capacity: energy_full,
@@ -310,10 +248,10 @@ fn main() {
             "no connection found".to_owned()
         };
 
-        let battery: Battery = batteries
+        let battery: models::Battery = batteries
             .iter()
             .filter_map(|bat| get_battery(bat).ok())
-            .fold(Battery::new(), |mut acc, bat| {
+            .fold(models::Battery::new(), |mut acc, bat| {
                 acc.combine(bat);
                 acc
             });
