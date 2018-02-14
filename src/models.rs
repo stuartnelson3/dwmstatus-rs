@@ -124,15 +124,25 @@ impl NetworkInterface {
     }
 
     pub fn status(&mut self, manager: &network_manager::NetworkManager) -> String {
-        let active_conn = self.find_conn(manager).unwrap();
+        let active_conn = match self.find_conn(manager) {
+            Some(conn) => conn,
+            None => return "no active connection".to_owned(),
+        };
+
         match self.get_bytes() {
             Ok((rx, tx)) => {
                 let rx = rx / 1024.0;
                 let tx = tx / 1024.0;
+
+                let network = if self.device_type() == &network_manager::DeviceType::Ethernet {
+                    "ethernet"
+                } else {
+                    &active_conn.settings().id
+                };
+
                 let status = format!(
-                    "{:?}: {} rx: {:.0} kbps tx: {:.0} kbps",
-                    self.device_type(),
-                    active_conn.settings().id,
+                    "{} rx: {:.0} kbps tx: {:.0} kbps",
+                    network,
                     rx - self.rx,
                     tx - self.tx,
                 );
