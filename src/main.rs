@@ -107,6 +107,11 @@ fn main() {
     let mut wifi = models::NetworkInterface::wifi();
     let mut ethernet = models::NetworkInterface::ethernet();
 
+    let debug = match std::env::var("DEBUG") {
+        Ok(_val) => true,
+        Err(_) => false,
+    };
+
     loop {
         let network_output = if let Some(en) = ethernet
             .iter_mut()
@@ -139,19 +144,23 @@ fn main() {
 
         let data = message.as_ptr() as *const c_void;
 
-        unsafe {
-            xcb_change_property(
-                conn.get_raw_conn(),
-                xcb::ffi::xproto::XCB_PROP_MODE_REPLACE as u8,
-                root,
-                xcb::ffi::xproto::XCB_ATOM_WM_NAME,
-                xcb::ffi::xproto::XCB_ATOM_STRING,
-                8 as u8,
-                message.len() as u32,
-                data,
-            );
+        if debug {
+            println!("{}", message);
+        } else {
+            unsafe {
+                xcb_change_property(
+                    conn.get_raw_conn(),
+                    xcb::ffi::xproto::XCB_PROP_MODE_REPLACE as u8,
+                    root,
+                    xcb::ffi::xproto::XCB_ATOM_WM_NAME,
+                    xcb::ffi::xproto::XCB_ATOM_STRING,
+                    8 as u8,
+                    message.len() as u32,
+                    data,
+                );
+            }
+            conn.flush();
         }
-        conn.flush();
 
         std::thread::sleep(one_sec);
     }
