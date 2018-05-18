@@ -2,10 +2,10 @@ extern crate network_manager;
 
 use std::fs::File;
 use std::io;
-use std::string::String;
-use std::io::BufReader;
 use std::io::BufRead;
+use std::io::BufReader;
 use std::io::{Error, ErrorKind};
+use std::string::String;
 
 #[derive(Debug)]
 pub enum BatteryStatus {
@@ -88,32 +88,27 @@ impl NetworkInterface {
         // Assuming we are on wifi, and that the first card is the right card.
         devices
             .into_iter()
-            .map(|dev| {
-                NetworkInterface {
-                    device: dev,
-                    rx: 0.0,
-                    tx: 0.0,
-                }
+            .map(|dev| NetworkInterface {
+                device: dev,
+                rx: 0.0,
+                tx: 0.0,
             })
             .collect()
     }
 
-    pub fn wifi() -> Option<Self> {
+    pub fn wifi() -> Vec<Self> {
         NetworkInterface::devices()
             .into_iter()
-            .filter(|dev| {
-                dev.device.device_type() == &network_manager::DeviceType::WiFi
-            })
-            .next()
+            .filter(|dev| dev.device.device_type() == &network_manager::DeviceType::WiFi)
+            .collect()
     }
 
-    pub fn ethernet() -> Option<Self> {
+    pub fn ethernet() -> Vec<Self> {
+        // This is taking the first device, but that's not the device being used.
         NetworkInterface::devices()
             .into_iter()
-            .filter(|dev| {
-                dev.device.device_type() == &network_manager::DeviceType::Ethernet
-            })
-            .next()
+            .filter(|dev| dev.device.device_type() == &network_manager::DeviceType::Ethernet)
+            .collect()
     }
 
     pub fn activated(&self) -> bool {

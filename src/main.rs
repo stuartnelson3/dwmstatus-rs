@@ -5,12 +5,12 @@ extern crate network_manager;
 extern crate xcb;
 
 use chrono::prelude::*;
-use xcb::ffi::xproto::xcb_change_property;
 use libc::c_void;
 use std::fs::File;
 use std::io;
 use std::io::Read;
 use std::string::String;
+use xcb::ffi::xproto::xcb_change_property;
 
 mod models;
 
@@ -31,17 +31,20 @@ fn get_battery(battery: &&str) -> io::Result<models::Battery> {
         buf.trim_right().to_owned()
     };
 
-    let energy_now = file_as_number(File::open(
-        format!("/sys/class/power_supply/{}/energy_now", battery),
-    )?);
+    let energy_now = file_as_number(File::open(format!(
+        "/sys/class/power_supply/{}/energy_now",
+        battery
+    ))?);
 
-    let energy_full = file_as_number(File::open(
-        format!("/sys/class/power_supply/{}/energy_full", battery),
-    )?);
+    let energy_full = file_as_number(File::open(format!(
+        "/sys/class/power_supply/{}/energy_full",
+        battery
+    ))?);
 
-    let power = file_as_number(File::open(
-        format!("/sys/class/power_supply/{}/power_now", battery),
-    )?);
+    let power = file_as_number(File::open(format!(
+        "/sys/class/power_supply/{}/power_now",
+        battery
+    ))?);
 
     let status = if status == "Charging" {
         models::BatteryStatus::Charging
@@ -101,14 +104,19 @@ fn main() {
 
     let manager = network_manager::NetworkManager::new();
 
-    let mut wifi = models::NetworkInterface::wifi().unwrap();
-    let mut ethernet = models::NetworkInterface::ethernet().unwrap();
+    let mut wifi = models::NetworkInterface::wifi();
+    let mut ethernet = models::NetworkInterface::ethernet();
 
     loop {
-        let network_output = if ethernet.activated() {
-            ethernet.status(&manager)
-        } else if wifi.activated() {
-            wifi.status(&manager)
+        let network_output = if let Some(en) = ethernet
+            .iter_mut()
+            .find(|en: &&mut models::NetworkInterface| en.activated())
+        {
+            en.status(&manager)
+        } else if let Some(wl) = wifi.iter_mut()
+            .find(|wl: &&mut models::NetworkInterface| wl.activated())
+        {
+            wl.status(&manager)
         } else {
             "no connection found".to_owned()
         };
