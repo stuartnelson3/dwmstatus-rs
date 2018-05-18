@@ -113,7 +113,7 @@ fn main() {
     };
 
     loop {
-        let network_output = if let Some(en) = ethernet
+        let mut network_output = if let Some(en) = ethernet
             .iter_mut()
             .find(|en: &&mut models::NetworkInterface| en.activated())
         {
@@ -125,6 +125,19 @@ fn main() {
         } else {
             "no connection found".to_owned()
         };
+
+        network_output = format!(
+            "{}{}",
+            network_output,
+            if let Some(_tun) = models::NetworkInterface::vpn()
+                .iter()
+                .find(|en: &&models::NetworkInterface| en.activated())
+            {
+                " | vpn"
+            } else {
+                ""
+            }
+        );
 
         let battery: models::Battery = batteries
             .iter()

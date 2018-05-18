@@ -96,6 +96,13 @@ impl NetworkInterface {
             .collect()
     }
 
+    pub fn vpn() -> Vec<Self> {
+        NetworkInterface::devices()
+            .into_iter()
+            .filter(|dev| dev.device.device_type() == &network_manager::DeviceType::Tun)
+            .collect()
+    }
+
     pub fn wifi() -> Vec<Self> {
         NetworkInterface::devices()
             .into_iter()
