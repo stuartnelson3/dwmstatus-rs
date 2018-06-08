@@ -84,8 +84,6 @@ impl NetworkInterface {
         let manager = NetworkManager::new();
         let devices = manager.get_devices().unwrap();
 
-        // Find active wifi device
-        // Assuming we are on wifi, and that the first card is the right card.
         devices
             .into_iter()
             .map(|dev| NetworkInterface {
@@ -111,7 +109,6 @@ impl NetworkInterface {
     }
 
     pub fn ethernet() -> Vec<Self> {
-        // This is taking the first device, but that's not the device being used.
         NetworkInterface::devices()
             .into_iter()
             .filter(|dev| dev.device.device_type() == &network_manager::DeviceType::Ethernet)
