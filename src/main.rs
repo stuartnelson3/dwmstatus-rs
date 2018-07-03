@@ -93,6 +93,25 @@ fn get_volume(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> String 
     }
 }
 
+fn get_network(
+    manager: &network_manager::NetworkManager,
+    ethernet: &mut Vec<models::NetworkInterface>,
+    wifi: &mut Vec<models::NetworkInterface>,
+) -> String {
+    if let Some(en) = ethernet
+        .iter_mut()
+        .find(|en: &&mut models::NetworkInterface| en.activated())
+    {
+        en.status(manager)
+    } else if let Some(wl) = wifi.iter_mut()
+        .find(|wl: &&mut models::NetworkInterface| wl.activated())
+    {
+        wl.status(manager)
+    } else {
+        "no connection found".to_owned()
+    }
+}
+
 fn main() {
     let (conn, screen_num) = xcb::Connection::connect(None).unwrap();
     let setup = conn.get_setup();
@@ -112,23 +131,17 @@ fn main() {
         Err(_) => false,
     };
 
+    // Get network initially just to set the counters to 0.
+    let _ = get_network(&manager, &mut ethernet, &mut wifi);
+
     loop {
         let eth = models::NetworkInterface::ethernet();
         if eth.len() > ethernet.len() {
+            // If a new device has been added, we want to include that in our search for an active
+            // connection.
             ethernet = eth;
         }
-        let mut network_output = if let Some(en) = ethernet
-            .iter_mut()
-            .find(|en: &&mut models::NetworkInterface| en.activated())
-        {
-            en.status(&manager)
-        } else if let Some(wl) = wifi.iter_mut()
-            .find(|wl: &&mut models::NetworkInterface| wl.activated())
-        {
-            wl.status(&manager)
-        } else {
-            "no connection found".to_owned()
-        };
+        let mut network_output = get_network(&manager, &mut ethernet, &mut wifi);
 
         network_output = format!(
             "{}{}",
