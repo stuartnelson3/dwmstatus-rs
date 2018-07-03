@@ -113,6 +113,10 @@ fn main() {
     };
 
     loop {
+        let eth = models::NetworkInterface::ethernet();
+        if eth.len() > ethernet.len() {
+            ethernet = eth;
+        }
         let mut network_output = if let Some(en) = ethernet
             .iter_mut()
             .find(|en: &&mut models::NetworkInterface| en.activated())
