@@ -82,7 +82,7 @@ impl NetworkInterface {
     pub fn devices() -> Vec<Self> {
         use network_manager::NetworkManager;
         let manager = NetworkManager::new();
-        let devices = manager.get_devices().unwrap();
+        let devices = manager.get_devices().unwrap_or(Vec::new());
 
         devices
             .into_iter()
