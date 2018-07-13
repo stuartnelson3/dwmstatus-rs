@@ -79,9 +79,7 @@ pub struct NetworkInterface {
 }
 
 impl NetworkInterface {
-    pub fn devices() -> Vec<Self> {
-        use network_manager::NetworkManager;
-        let manager = NetworkManager::new();
+    pub fn devices(manager: &network_manager::NetworkManager) -> Vec<Self> {
         let devices = manager.get_devices().unwrap_or(Vec::new());
 
         devices
@@ -94,22 +92,22 @@ impl NetworkInterface {
             .collect()
     }
 
-    pub fn vpn() -> Vec<Self> {
-        NetworkInterface::devices()
+    pub fn vpn(manager: &network_manager::NetworkManager) -> Vec<Self> {
+        NetworkInterface::devices(manager)
             .into_iter()
             .filter(|dev| dev.device.device_type() == &network_manager::DeviceType::Tun)
             .collect()
     }
 
-    pub fn wifi() -> Vec<Self> {
-        NetworkInterface::devices()
+    pub fn wifi(manager: &network_manager::NetworkManager) -> Vec<Self> {
+        NetworkInterface::devices(manager)
             .into_iter()
             .filter(|dev| dev.device.device_type() == &network_manager::DeviceType::WiFi)
             .collect()
     }
 
-    pub fn ethernet() -> Vec<Self> {
-        NetworkInterface::devices()
+    pub fn ethernet(manager: &network_manager::NetworkManager) -> Vec<Self> {
+        NetworkInterface::devices(manager)
             .into_iter()
             .filter(|dev| dev.device.device_type() == &network_manager::DeviceType::Ethernet)
             .collect()
