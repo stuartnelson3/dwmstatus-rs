@@ -22,7 +22,7 @@ fn file_as_number(mut file: File) -> f32 {
     let mut buf = String::new();
     file.read_to_string(&mut buf).is_ok();
     // Remove \n
-    let trimmed = buf.trim_right();
+    let trimmed = buf.trim_end();
     trimmed.parse::<f32>().unwrap()
 }
 
@@ -32,7 +32,7 @@ fn get_battery(battery: &&str) -> io::Result<models::Battery> {
         let mut buf = String::new();
         f.read_to_string(&mut buf).is_ok();
         // Remove \n
-        buf.trim_right().to_owned()
+        buf.trim_end().to_owned()
     };
 
     let energy_now = file_as_number(File::open(format!(
@@ -107,7 +107,8 @@ fn get_network(
         .find(|en: &&mut models::NetworkInterface| en.activated())
     {
         en.status(manager)
-    } else if let Some(wl) = wifi.iter_mut()
+    } else if let Some(wl) = wifi
+        .iter_mut()
         .find(|wl: &&mut models::NetworkInterface| wl.activated())
     {
         wl.status(manager)
