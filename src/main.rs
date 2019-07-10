@@ -11,44 +11,37 @@ use crossbeam_channel as channel;
 use libc::c_void;
 use std::fs::File;
 use std::io;
-use std::io::Read;
+use std::io::{BufReader, Error, ErrorKind, Read};
 use std::string::String;
 use std::time::Duration;
 use xcb::ffi::xproto::xcb_change_property;
 
 mod models;
 
-fn file_as_number(mut file: File) -> f32 {
+fn file_as_number(path: String) -> io::Result<f32> {
+    let contents = read_file(path)?;
+    contents
+        .parse::<f32>()
+        .map_err(|err| Error::new(ErrorKind::Other, err))
+}
+
+fn read_file(path: String) -> io::Result<String> {
+    let f = File::open(path)?;
+    let mut buf_reader = BufReader::new(f);
     let mut buf = String::new();
-    file.read_to_string(&mut buf).is_ok();
+    buf_reader.read_to_string(&mut buf)?;
     // Remove \n
-    let trimmed = buf.trim_end();
-    trimmed.parse::<f32>().unwrap()
+    Ok(buf.trim_end().to_owned())
 }
 
 fn get_battery(battery: &&str) -> io::Result<models::Battery> {
-    let mut f = File::open(format!("/sys/class/power_supply/{}/status", battery))?;
-    let status = {
-        let mut buf = String::new();
-        f.read_to_string(&mut buf).is_ok();
-        // Remove \n
-        buf.trim_end().to_owned()
-    };
+    let status = read_file(format!("/sys/class/power_supply/{}/status", battery))?;
 
-    let energy_now = file_as_number(File::open(format!(
-        "/sys/class/power_supply/{}/energy_now",
-        battery
-    ))?);
+    let energy_now = file_as_number(format!("/sys/class/power_supply/{}/energy_now", battery))?;
 
-    let energy_full = file_as_number(File::open(format!(
-        "/sys/class/power_supply/{}/energy_full",
-        battery
-    ))?);
+    let energy_full = file_as_number(format!("/sys/class/power_supply/{}/energy_full", battery))?;
 
-    let power = file_as_number(File::open(format!(
-        "/sys/class/power_supply/{}/power_now",
-        battery
-    ))?);
+    let power = file_as_number(format!("/sys/class/power_supply/{}/power_now", battery))?;
 
     let status = if status == "Charging" {
         models::BatteryStatus::Charging
