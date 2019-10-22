@@ -165,9 +165,9 @@ fn main() {
         //     ethernet = eth;
         // }
         select! {
-            recv(networkc) => network_output = get_network(&manager, &mut ethernet, &mut wifi),
-            recv(datec) => date = get_date(),
-            recv(batteryc) => {
+            recv(networkc) -> _ => network_output = get_network(&manager, &mut ethernet, &mut wifi),
+            recv(datec) -> _ => date = get_date(),
+            recv(batteryc) -> _ => {
                 battery = batteries
                     .iter()
                     .filter_map(|bat| get_battery(bat).ok())
@@ -176,7 +176,7 @@ fn main() {
                         acc
                     });
             },
-            recv(statusc) => {
+            recv(statusc) -> _ => {
                 let message = format!(
                     " {} | {} | {} | {} ",
                     network_output,
