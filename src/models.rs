@@ -183,17 +183,19 @@ impl NetworkInterface {
 
         for line in lines {
             match line {
-                Ok(line) => if line.starts_with(self.interface()) {
-                    let mut split = line.split_whitespace();
-                    split.next();
-                    let rx = split.nth(0);
-                    let tx = split.nth(1 * section_len);
+                Ok(line) => {
+                    if line.starts_with(self.interface()) {
+                        let mut split = line.split_whitespace();
+                        split.next();
+                        let rx = split.nth(0);
+                        let tx = split.nth(1 * section_len);
 
-                    return Ok((
-                        rx.unwrap_or("0").parse::<f32>().unwrap(),
-                        tx.unwrap_or("0").parse::<f32>().unwrap(),
-                    ));
-                },
+                        return Ok((
+                            rx.unwrap_or("0").parse::<f32>().unwrap(),
+                            tx.unwrap_or("0").parse::<f32>().unwrap(),
+                        ));
+                    }
+                }
                 Err(_) => continue,
             }
         }
