@@ -71,22 +71,31 @@ fn get_date() -> String {
     )
 }
 
-fn get_volume(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> String {
-    let mixer = alsa::mixer::Mixer::new(audio_card_name, true).unwrap();
-    let selem = mixer.find_selem(&selem_id).unwrap();
+fn get_volume_text(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> String {
+    let vol = match get_volume(audio_card_name, selem_id) {
+        Some(volume_percent) => format!("{}", volume_percent as i8),
+        None => "[err]".to_owned(),
+    };
+
+    format!("Vol: {}", vol)
+}
+
+fn get_volume(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> Option<f64> {
+    let mixer = alsa::mixer::Mixer::new(audio_card_name, true).ok()?;
+    let selem = mixer.find_selem(&selem_id)?;
 
     let (pmin, pmax) = selem.get_playback_volume_range();
     let pvol = selem
         .get_playback_volume(alsa::mixer::SelemChannelId::FrontLeft)
-        .unwrap();
+        .ok()?;
     let volume_percent = 100.0 * pvol as f64 / (pmax - pmin) as f64;
     let psw = selem
         .get_playback_switch(alsa::mixer::SelemChannelId::FrontLeft)
-        .unwrap();
+        .ok()?;
     if psw == 1 {
-        format!("Vol: {}", volume_percent as i8)
+        Some(volume_percent)
     } else {
-        format!("Vol: [off]")
+        None
     }
 }
 
@@ -180,7 +189,7 @@ fn main() {
                 let message = format!(
                     " {} | {} | {} | {} ",
                     network_output,
-                    get_volume(audio_card_name, &selem_id),
+                    get_volume_text(audio_card_name, &selem_id),
                     date,
                     battery.status(),
                 );
