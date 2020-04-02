@@ -156,9 +156,9 @@ impl NetworkInterface {
         manager: &network_manager::NetworkManager,
     ) -> Option<network_manager::Connection> {
         // Find active connection for active wifi device
-        manager
-            .get_active_connections()
-            .unwrap()
+        let active_connections = manager.get_active_connections().ok()?;
+
+        active_connections
             .into_iter()
             .filter(|conn| {
                 conn.get_devices()
