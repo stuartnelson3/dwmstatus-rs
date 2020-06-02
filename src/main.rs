@@ -73,14 +73,21 @@ fn get_date() -> String {
 
 fn get_volume_text(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> String {
     let vol = match get_volume(audio_card_name, selem_id) {
-        Some(volume_percent) => format!("{}", volume_percent as i8),
-        None => "[err]".to_owned(),
+        Some(AudioStatus::On(volume_percent)) => format!("{}", volume_percent as i8),
+        Some(AudioStatus::Off) => "[off]".to_owned(),
+        Some(AudioStatus::Error) | None => "[err]".to_owned(),
     };
 
     format!("Vol: {}", vol)
 }
 
-fn get_volume(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> Option<f64> {
+pub enum AudioStatus {
+    On(f64),
+    Off,
+    Error,
+}
+
+fn get_volume(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> Option<AudioStatus> {
     let mixer = alsa::mixer::Mixer::new(audio_card_name, true).ok()?;
     let selem = mixer.find_selem(&selem_id)?;
 
@@ -92,8 +99,11 @@ fn get_volume(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> Option<
     let psw = selem
         .get_playback_switch(alsa::mixer::SelemChannelId::FrontLeft)
         .ok()?;
+
     if psw == 1 {
-        Some(volume_percent)
+        Some(AudioStatus::On(volume_percent))
+    } else if psw == 0 {
+        Some(AudioStatus::Off)
     } else {
         None
     }
