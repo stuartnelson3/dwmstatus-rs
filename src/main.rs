@@ -43,12 +43,10 @@ fn get_battery(battery: &&str) -> io::Result<models::Battery> {
 
     let power = file_as_number(format!("/sys/class/power_supply/{}/power_now", battery))?;
 
-    let status = if status == "Charging" {
-        models::BatteryStatus::Charging
-    } else if (status == "Unknown" || status == "Full") && power == 0.0 {
-        models::BatteryStatus::Charged
-    } else {
-        models::BatteryStatus::Discharging
+    let status = match status.as_ref() {
+        "Charging" => models::BatteryStatus::Charging,
+        "Unknown" | "Full" if power == 0.0 => models::BatteryStatus::Charged,
+        _ => models::BatteryStatus::Discharging,
     };
 
     Ok(models::Battery {
