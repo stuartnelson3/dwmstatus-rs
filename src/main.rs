@@ -71,9 +71,9 @@ fn get_date() -> String {
 
 fn get_volume_text(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> String {
     let vol = match get_volume(audio_card_name, selem_id) {
-        Some(AudioStatus::On(volume_percent)) => format!("{}", volume_percent as i8),
-        Some(AudioStatus::Off) => "[off]".to_owned(),
-        Some(AudioStatus::Error) | None => "[err]".to_owned(),
+        Ok(AudioStatus::On(volume_percent)) => format!("{}", volume_percent as i8),
+        Ok(AudioStatus::Off) => "[off]".to_owned(),
+        Err(_) => "[err]".to_owned(),
     };
 
     format!("Vol: {}", vol)
@@ -82,28 +82,29 @@ fn get_volume_text(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> St
 pub enum AudioStatus {
     On(f64),
     Off,
-    Error,
 }
 
-fn get_volume(audio_card_name: &str, selem_id: &alsa::mixer::SelemId) -> Option<AudioStatus> {
-    let mixer = alsa::mixer::Mixer::new(audio_card_name, true).ok()?;
-    let selem = mixer.find_selem(&selem_id)?;
+fn get_volume(
+    audio_card_name: &str,
+    selem_id: &alsa::mixer::SelemId,
+) -> Result<AudioStatus, alsa::Error> {
+    use alsa::Error;
+
+    let mixer = alsa::mixer::Mixer::new(audio_card_name, true)?;
+    let selem = mixer
+        .find_selem(&selem_id)
+        .ok_or(Error::unsupported("could not find selem"))?;
 
     let (pmin, pmax) = selem.get_playback_volume_range();
-    let pvol = selem
-        .get_playback_volume(alsa::mixer::SelemChannelId::FrontLeft)
-        .ok()?;
-    let volume_percent = 100.0 * pvol as f64 / (pmax - pmin) as f64;
-    let psw = selem
-        .get_playback_switch(alsa::mixer::SelemChannelId::FrontLeft)
-        .ok()?;
 
-    if psw == 1 {
-        Some(AudioStatus::On(volume_percent))
-    } else if psw == 0 {
-        Some(AudioStatus::Off)
-    } else {
-        None
+    let pvol = selem.get_playback_volume(alsa::mixer::SelemChannelId::FrontLeft)?;
+
+    let volume_percent = 100.0 * pvol as f64 / (pmax - pmin) as f64;
+
+    match selem.get_playback_switch(alsa::mixer::SelemChannelId::FrontLeft)? {
+        1 => Ok(AudioStatus::On(volume_percent)),
+        0 => Ok(AudioStatus::Off),
+        _ => Err(Error::unsupported("unexpected playback switch status")),
     }
 }
 
