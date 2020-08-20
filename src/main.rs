@@ -112,17 +112,18 @@ fn get_network(
     manager: &network_manager::NetworkManager,
     ethernet: &mut Vec<models::NetworkInterface>,
     wifi: &mut Vec<models::NetworkInterface>,
+    tick: f32,
 ) -> String {
     let cxn = if let Some(en) = ethernet
         .iter_mut()
         .find(|en: &&mut models::NetworkInterface| en.activated())
     {
-        en.status(manager)
+        en.status(manager, tick)
     } else if let Some(wl) = wifi
         .iter_mut()
         .find(|wl: &&mut models::NetworkInterface| wl.activated())
     {
-        wl.status(manager)
+        wl.status(manager, tick)
     } else {
         "no connection found".to_owned()
     };
@@ -161,8 +162,9 @@ fn main() {
     let mut date = get_date();
     let mut old_message = String::new();
     // Zero out the initial network counters.
-    let _ = get_network(&manager, &mut ethernet, &mut wifi);
-    let mut network_output = get_network(&manager, &mut ethernet, &mut wifi);
+    let network_tick = 2 as f32;
+    let _ = get_network(&manager, &mut ethernet, &mut wifi, network_tick);
+    let mut network_output = get_network(&manager, &mut ethernet, &mut wifi, network_tick);
 
     let debug = match std::env::var("DEBUG") {
         Ok(_val) => true,
@@ -170,9 +172,9 @@ fn main() {
     };
 
     let seconds = |seconds| Duration::from_secs(seconds);
-    let networkc = channel::tick(seconds(2));
+    let networkc = channel::tick(seconds(network_tick as u64));
     let statusc = channel::tick(seconds(1));
-    let batteryc = channel::tick(seconds(5));
+    let batteryc = channel::tick(seconds(10));
     let datec = channel::tick(seconds(10));
 
     loop {
@@ -183,7 +185,7 @@ fn main() {
         //     ethernet = eth;
         // }
         select! {
-            recv(networkc) -> _ => network_output = get_network(&manager, &mut ethernet, &mut wifi),
+            recv(networkc) -> _ => network_output = get_network(&manager, &mut ethernet, &mut wifi, network_tick),
             recv(datec) -> _ => date = get_date(),
             recv(batteryc) -> _ => {
                 battery = batteries

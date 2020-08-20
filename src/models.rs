@@ -120,7 +120,7 @@ impl NetworkInterface {
         }
     }
 
-    pub fn status(&mut self, manager: &network_manager::NetworkManager) -> String {
+    pub fn status(&mut self, manager: &network_manager::NetworkManager, tick: f32) -> String {
         let active_conn = match self.find_conn(manager) {
             Some(conn) => conn,
             None => return "no active connection".to_owned(),
@@ -140,8 +140,8 @@ impl NetworkInterface {
                 let status = format!(
                     "{} rx: {:.0} kbps tx: {:.0} kbps",
                     network,
-                    rx - self.rx,
-                    tx - self.tx,
+                    (rx - self.rx) / tick,
+                    (tx - self.tx) / tick,
                 );
                 self.rx = rx;
                 self.tx = tx;
