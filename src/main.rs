@@ -97,11 +97,11 @@ fn get_volume(
 
     let (pmin, pmax) = selem.get_playback_volume_range();
 
-    let pvol = selem.get_playback_volume(alsa::mixer::SelemChannelId::FrontLeft)?;
+    let pvol = selem.get_playback_volume(alsa::mixer::SelemChannelId::mono())?;
 
     let volume_percent = 100.0 * pvol as f64 / (pmax - pmin) as f64;
 
-    match selem.get_playback_switch(alsa::mixer::SelemChannelId::FrontLeft)? {
+    match selem.get_playback_switch(alsa::mixer::SelemChannelId::mono())? {
         1 => Ok(AudioStatus::On(volume_percent)),
         0 => Ok(AudioStatus::Off),
         _ => Err(Error::unsupported("unexpected playback switch status")),
